@@ -1,0 +1,236 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 14px;
+  
+  /* Warm Glassmorphic Background System */
+  --background: #f7f5ef;
+  --background-secondary: rgba(247, 245, 239, 0.4);
+  --glass-background: rgba(255, 252, 245, 0.25);
+  --glass-border: rgba(200, 200, 200, 0.18);
+  --glass-shadow: rgba(31, 31, 31, 0.15);
+  
+  /* Black & Warm Color Palette */
+  --foreground: #1f1f1f;
+  --foreground-muted: #525252;
+  --foreground-subtle: #737373;
+  
+  /* Glass Cards */
+  --card: rgba(255, 252, 245, 0.35);
+  --card-foreground: #1f1f1f;
+  --card-border: rgba(200, 200, 200, 0.25);
+  
+  /* Interactive Elements */
+  --primary: #1f1f1f;
+  --primary-foreground: #ffffff;
+  --primary-glass: rgba(31, 31, 31, 0.1);
+  
+  --secondary: rgba(247, 245, 239, 0.8);
+  --secondary-foreground: #1f1f1f;
+  
+  --accent: rgba(200, 200, 200, 0.5);
+  --accent-foreground: #1f1f1f;
+  
+  /* Semantic Colors - Warm */
+  --success: rgba(34, 139, 34, 0.1);
+  --success-foreground: #166534;
+  --warning: rgba(218, 165, 32, 0.1);
+  --warning-foreground: #a16207;
+  --error: rgba(205, 92, 92, 0.1);
+  --error-foreground: #dc2626;
+  
+  /* Borders and Inputs */
+  --border: rgba(160, 160, 160, 0.3);
+  --input: rgba(255, 252, 245, 0.1);
+  --input-background: rgba(255, 252, 245, 0.05);
+  --ring: rgba(31, 31, 31, 0.2);
+  
+  /* Agent Colors - Warm Palette */
+  --agent-clarifier: rgba(70, 130, 180, 0.1);
+  --agent-critic: rgba(178, 34, 34, 0.1);
+  --agent-defender: rgba(34, 139, 34, 0.1);
+  --agent-investor: rgba(138, 43, 226, 0.1);
+  
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --background-secondary: rgba(10, 10, 10, 0.4);
+  --glass-background: rgba(31, 31, 31, 0.25);
+  --glass-border: rgba(64, 64, 64, 0.18);
+  --glass-shadow: rgba(0, 0, 0, 0.37);
+  
+  --foreground: #f5f5f5;
+  --foreground-muted: #a3a3a3;
+  --foreground-subtle: #737373;
+  
+  --card: rgba(31, 31, 31, 0.25);
+  --card-foreground: #f5f5f5;
+  --card-border: rgba(64, 64, 64, 0.18);
+  
+  --primary: #f5f5f5;
+  --primary-foreground: #0a0a0a;
+  --primary-glass: rgba(245, 245, 245, 0.1);
+  
+  --secondary: rgba(31, 31, 31, 0.8);
+  --secondary-foreground: #f5f5f5;
+  
+  --accent: rgba(64, 64, 64, 0.5);
+  --accent-foreground: #f5f5f5;
+  
+  --success: rgba(34, 139, 34, 0.15);
+  --success-foreground: #4ade80;
+  --warning: rgba(218, 165, 32, 0.15);
+  --warning-foreground: #fbbf24;
+  --error: rgba(205, 92, 92, 0.15);
+  --error-foreground: #ef4444;
+  
+  --border: rgba(64, 64, 64, 0.3);
+  --input: rgba(31, 31, 31, 0.1);
+  --input-background: rgba(31, 31, 31, 0.05);
+  --ring: rgba(245, 245, 245, 0.2);
+  
+  --agent-clarifier: rgba(70, 130, 180, 0.15);
+  --agent-critic: rgba(178, 34, 34, 0.15);
+  --agent-defender: rgba(34, 139, 34, 0.15);
+  --agent-investor: rgba(138, 43, 226, 0.15);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-glass-background: var(--glass-background);
+  --color-glass-border: var(--glass-border);
+  --color-glass-shadow: var(--glass-shadow);
+  
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-card-border: var(--card-border);
+  
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glass: var(--primary-glass);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+  
+  --color-agent-clarifier: var(--agent-clarifier);
+  --color-agent-critic: var(--agent-critic);
+  --color-agent-defender: var(--agent-defender);
+  --color-agent-investor: var(--agent-investor);
+  
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(31, 31, 31, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(178, 34, 34, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 50% 100%, rgba(34, 139, 34, 0.02) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+@layer base {
+  h1 {
+    font-size: 2rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  label {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+
+  button {
+    font-size: 0.875rem;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+
+  input, textarea {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+}
+
+/* Glassmorphic utility classes */
+@layer utilities {
+  .glass {
+    background: var(--glass-background);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 var(--glass-shadow);
+  }
+  
+  .glass-subtle {
+    background: rgba(255, 252, 245, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(200, 200, 200, 0.1);
+  }
+  
+  .glass-card {
+    background: var(--color-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--color-card-border);
+    box-shadow: 0 8px 32px 0 rgba(31, 31, 31, 0.1);
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
