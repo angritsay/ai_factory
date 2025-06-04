@@ -1,5 +1,4 @@
-// Mock service for AI agent evaluation
-// In a real implementation, this would make actual OpenAI API calls
+import OpenAI from 'openai';
 
 interface Message {
   id: string;
@@ -28,18 +27,22 @@ interface InvestmentVerdict {
   recommendedNext: string[];
 }
 
+type ChatMessage = { role: 'user' | 'assistant'; content: string };
+
+type PartialResult = { startupPitch?: StartupPitch; investmentVerdict?: InvestmentVerdict };
+
 export class EvaluationService {
-  private apiKey: string;
+  private openai: OpenAI;
   private budget: number;
-  private currentCost: number = 0;
-  private shouldStop: boolean = false;
-  private currentRound: number = 1;
-  private maxRounds: number = 3;
+  private currentCost = 0;
+  private shouldStop = false;
+  private currentRound = 1;
+  private maxRounds = 3;
   private conversationHistory: Message[] = [];
-  private selectedMock: any;
+  private chatHistory: ChatMessage[] = [];
 
   constructor(apiKey: string, budget: number) {
-    this.apiKey = apiKey;
+    this.openai = new OpenAI({ apiKey });
     this.budget = budget;
   }
 
@@ -51,281 +54,153 @@ export class EvaluationService {
     idea: string,
     onProgress: (step: number, message: Message, cost: number) => void,
     onComplete: (summary: { startupPitch: StartupPitch; investmentVerdict: InvestmentVerdict; conversationHistory: Message[] }) => void,
-    onResultUpdate?: (partialResult: { startupPitch?: StartupPitch; investmentVerdict?: InvestmentVerdict }) => void
+    onResultUpdate?: (partialResult: PartialResult) => void
   ) {
     this.shouldStop = false;
-    this.conversationHistory = [];
     this.currentRound = 1;
+    this.currentCost = 0;
+    this.conversationHistory = [];
+    this.chatHistory = [{ role: 'user', content: idea }];
 
-    // Mock conversation flow
-    const mockConversations = {
-      "food delivery app": {
-        rounds: [
-          {
-            clarifier: "I understand you're proposing a food delivery application. Let me clarify the concept: You're suggesting a platform that connects restaurants with customers for meal delivery. The core problem seems to be convenience - people want restaurant food delivered to their location. The target market would be busy professionals, families, and anyone preferring not to cook or dine out. Is this focused on a specific geographic area or demographic?",
-            critic: "Food delivery is an extremely saturated market dominated by established players like DoorDash, Uber Eats, and Grubhub. The unit economics are challenging - high customer acquisition costs, driver costs, and thin margins. What's your differentiation? How will you compete with billion-dollar companies that already have restaurant partnerships and delivery infrastructure?",
-            defender: "While the market is competitive, there are still opportunities for innovation. We could focus on underserved markets like small towns, or specialize in specific cuisine types or dietary restrictions. Our differentiation could be lower commission rates for restaurants, better driver compensation, or superior technology for order accuracy and delivery speed.",
-          },
-          {
-            critic: "Small towns may not have sufficient order density to make delivery profitable. Specialized cuisines limit your addressable market. Lower commission rates mean lower margins - how do you achieve profitability? Driver compensation costs money. Where's your sustainable competitive advantage?",
-            defender: "We could start with a hub-and-spoke model in smaller cities with satellite coverage. For profitability, we'd focus on operational efficiency through AI-powered routing and demand prediction. Our competitive advantage could be community focus - building local partnerships and supporting local restaurants with marketing tools.",
-          },
-          {
-            critic: "AI routing exists in current platforms. Local partnerships are nice but not defensible. You need significant capital for expansion. What's your go-to-market strategy and timeline to profitability?",
-            defender: "Our go-to-market would be asset-light initially - partnering with existing delivery drivers and focusing on software. We'd target specific corridors between small cities for efficiency. Revenue diversification through restaurant POS integration, inventory management services, and premium subscriptions for customers.",
-          }
-        ],
-        pitch: {
-          name: "LocalBites",
-          problem: "Small to medium-sized cities are underserved by major food delivery platforms, leaving local restaurants without delivery options and customers with limited food access.",
-          solution: "A community-focused food delivery platform that connects local restaurants with customers in underserved markets, offering competitive rates and supporting local businesses.",
-          market: "Small to medium-sized cities (50K-200K population) across the US, targeting busy professionals, families, and elderly customers who value convenience.",
-          businessModel: "Commission-based revenue from restaurants (15% vs industry 25-30%), premium customer subscriptions, and B2B services for restaurant management tools.",
-          competitive: "Lower commission rates, community focus, operational efficiency through AI routing, and expansion into markets too small for major competitors.",
-          execution: "Start with 3-5 pilot cities, build restaurant partnerships, develop driver network, scale operations based on proven unit economics, expand regionally."
-        },
-        verdict: {
-          decision: "pass" as const,
-          confidence: 65,
-          reasoning: "While the focus on underserved markets is compelling, the fundamental challenges of food delivery unit economics remain. Lower commission rates reduce profitability while operational costs stay high. The competitive moat is weak and major players could easily expand into these markets if profitable.",
-          strengths: [
-            "Clear market gap in smaller cities",
-            "Community-focused approach with local partnerships",
-            "Lower commission rates attractive to restaurants",
-            "Asset-light initial approach reduces risk"
-          ],
-          concerns: [
-            "Thin margins with lower commission structure",
-            "Insufficient order density in smaller markets",
-            "No sustainable competitive advantage",
-            "Major competitors could quickly enter profitable markets",
-            "High customer acquisition costs even in small markets"
-          ],
-          recommendedNext: [
-            "Conduct detailed market analysis of specific target cities",
-            "Develop stronger differentiation beyond pricing",
-            "Create partnerships with local business associations",
-            "Build MVP and test unit economics in one pilot market"
-          ]
-        }
-      },
-      
-      "ai tutoring platform": {
-        rounds: [
-          {
-            clarifier: "You're proposing an AI-powered tutoring platform. The core concept is using artificial intelligence to provide personalized education assistance to students. This addresses the problem of expensive human tutoring and one-size-fits-all education. The target market includes students, parents, and educational institutions. Are you focusing on specific subjects, age groups, or educational levels?",
-            critic: "EdTech is a crowded space with many AI tutoring solutions already available. Companies like Khan Academy, Coursera, and specialized platforms like Socratic by Google exist. How is your AI different? What's your evidence that AI can effectively replace human tutoring? Student retention and engagement are major challenges in digital learning.",
-            defender: "Our differentiation lies in personalized learning paths that adapt in real-time based on student performance and learning style. Unlike generic platforms, we'd offer subject-specific AI tutors trained on curriculum standards. We'd focus on supplementing, not replacing human tutors, and integrate with existing school systems.",
-          },
-          {
-            critic: "Personalized learning is what every EdTech company claims. Real-time adaptation requires significant data and sophisticated algorithms - that's expensive to develop and maintain. Integration with schools moves slowly and requires compliance with privacy regulations like FERPA. How do you monetize while keeping it affordable for students?",
-            defender: "We'd start with a freemium model targeting individual students and parents. Revenue from premium features, institutional licenses, and partnerships with textbook publishers. Our AI would be trained on open educational content initially, reducing development costs. Privacy-first design from the ground up.",
-          },
-          {
-            critic: "Freemium models in education have low conversion rates. Individual students are price-sensitive. Institutional sales cycles are 12-18 months. Textbook publishers have their own digital strategies. How do you acquire users and achieve scale?",
-            defender: "User acquisition through content marketing, partnerships with teachers and education influencers, and referral programs. We'd focus on measurable outcomes - if students improve grades, parents will pay. Integration with popular learning management systems for distribution.",
-          }
-        ],
-        pitch: {
-          name: "EduMentor AI",
-          problem: "Students struggle with personalized learning support while human tutoring is expensive and not scalable. Traditional educational platforms lack adaptive intelligence.",
-          solution: "AI-powered tutoring platform that provides personalized, adaptive learning experiences across multiple subjects with real-time progress tracking and curriculum alignment.",
-          market: "K-12 students, college students, and adult learners globally. Primary focus on STEM subjects with expansion to humanities and test preparation.",
-          businessModel: "Freemium model with premium subscriptions ($9.99/month), institutional licenses for schools, and partnerships with educational content providers.",
-          competitive: "Real-time adaptive learning algorithms, curriculum-aligned content, multi-modal learning support (text, voice, visual), and seamless LMS integration.",
-          execution: "Launch with math and science tutoring, build user base through freemium model, gather learning data to improve AI, expand subject coverage, pursue institutional partnerships."
-        },
-        verdict: {
-          decision: "invest" as const,
-          confidence: 78,
-          reasoning: "The AI tutoring market has significant potential with growing demand for personalized education. The focus on curriculum alignment and measurable outcomes differentiates this from generic platforms. Strong unit economics potential with subscription model and institutional sales.",
-          strengths: [
-            "Large and growing EdTech market ($340B globally)",
-            "Clear value proposition for students and parents",
-            "Scalable AI-driven approach",
-            "Multiple revenue streams and expansion opportunities",
-            "Measurable outcomes drive customer retention"
-          ],
-          concerns: [
-            "Highly competitive market with well-funded incumbents",
-            "Customer acquisition costs in education can be high",
-            "Regulatory compliance requirements",
-            "Need for significant content development",
-            "Proving AI effectiveness vs human tutoring"
-          ],
-          recommendedNext: [
-            "Develop MVP focused on one subject area (likely math)",
-            "Conduct pilot program with 100 students to prove efficacy",
-            "Build partnerships with teachers for content validation",
-            "Establish metrics for measuring student improvement",
-            "Secure initial funding for content development and AI training"
-          ]
-        }
-      }
-    };
-
-    // Determine which mock conversation to use based on the idea
-    const ideaLower = idea.toLowerCase();
-    
-    if (ideaLower.includes('food') || ideaLower.includes('delivery') || ideaLower.includes('restaurant')) {
-      this.selectedMock = mockConversations["food delivery app"];
-    } else if (ideaLower.includes('ai') || ideaLower.includes('tutor') || ideaLower.includes('education') || ideaLower.includes('learn')) {
-      this.selectedMock = mockConversations["ai tutoring platform"];
-    } else {
-      // Default to AI tutoring for other ideas
-      this.selectedMock = mockConversations["ai tutoring platform"];
+    // Clarifier step
+    const clarifier = await this.callAgent('clarifier');
+    const clarifierMsg = this.addMessage('clarifier', clarifier, this.currentRound);
+    onProgress(0, clarifierMsg, clarifier.cost);
+    if (onResultUpdate) {
+      const pitch = await this.summarizePitch();
+      onResultUpdate({ startupPitch: pitch });
     }
 
-    // Start the evaluation
-    await this.runEvaluation(onProgress, onComplete, onResultUpdate);
+    // Critic/Defender rounds
+    for (let r = 1; r <= this.maxRounds && !this.shouldStop; r++) {
+      // Critic
+      const critic = await this.callAgent('critic');
+      const criticMsg = this.addMessage('critic', critic, this.currentRound);
+      onProgress(1, criticMsg, critic.cost);
+      if (this.checkBudget()) break;
+
+      // Defender
+      const defender = await this.callAgent('defender');
+      const defenderMsg = this.addMessage('defender', defender, this.currentRound);
+      onProgress(2, defenderMsg, defender.cost);
+      if (this.checkBudget()) break;
+
+      this.currentRound++;
+
+      if (onResultUpdate) {
+        const pitch = await this.summarizePitch();
+        const verdict = await this.summarizeVerdict();
+        onResultUpdate({ startupPitch: pitch, investmentVerdict: verdict });
+      }
+    }
+
+    if (!this.shouldStop) {
+      const investor = await this.callAgent('investor');
+      const investorMsg = this.addMessage('investor', investor, this.currentRound);
+      onProgress(3, investorMsg, investor.cost);
+      const summary = this.parseFinalSummary(investor.content);
+      onComplete({
+        startupPitch: summary.startupPitch,
+        investmentVerdict: summary.investmentVerdict,
+        conversationHistory: this.conversationHistory,
+      });
+    }
   }
 
   async continueEvaluation(
     onProgress: (step: number, message: Message, cost: number) => void,
     onComplete: (summary: { startupPitch: StartupPitch; investmentVerdict: InvestmentVerdict; conversationHistory: Message[] }) => void,
-    onResultUpdate?: (partialResult: { startupPitch?: StartupPitch; investmentVerdict?: InvestmentVerdict }) => void
+    onResultUpdate?: (partialResult: PartialResult) => void
   ) {
     this.shouldStop = false;
-    this.maxRounds += 2; // Add 2 more rounds
-    await this.runEvaluation(onProgress, onComplete, onResultUpdate);
+    this.maxRounds += 2;
+    await this.evaluateIdea(this.chatHistory[0].content, onProgress, onComplete, onResultUpdate);
   }
 
-  private async runEvaluation(
-    onProgress: (step: number, message: Message, cost: number) => void,
-    onComplete: (summary: { startupPitch: StartupPitch; investmentVerdict: InvestmentVerdict; conversationHistory: Message[] }) => void,
-    onResultUpdate?: (partialResult: { startupPitch?: StartupPitch; investmentVerdict?: InvestmentVerdict }) => void
-  ) {
-    // Simulate the conversation
-    for (let round = this.currentRound - 1; round < Math.min(this.maxRounds, this.selectedMock.rounds.length); round++) {
-      if (this.shouldStop) break;
+  private async callAgent(agent: 'clarifier' | 'critic' | 'defender' | 'investor') {
+    const systemPrompts: Record<typeof agent, string> = {
+      clarifier: 'You are Clarifier, an AI agent that summarizes and asks clarifying questions about startup ideas.',
+      critic: 'You are Critic, an AI agent that highlights potential issues, risks, and challenges with the startup idea discussed so far.',
+      defender: 'You are Defender, an AI agent that responds to the critic\'s concerns and proposes improvements.',
+      investor: 'You are Investor, a venture capitalist who will provide a final investment verdict in JSON as {"startupPitch":{...},"investmentVerdict":{...}}.'
+    };
 
-      const roundData = this.selectedMock.rounds[round];
-      
-      // Clarifier step
-      if (round === 0 && this.conversationHistory.length === 0) {
-        if (this.shouldStop) break;
-        await this.simulateAgentResponse(
-          'clarifier',
-          roundData.clarifier,
-          round + 1,
-          0,
-          onProgress
-        );
-        
-        // Update partial result after clarifier
-        if (onResultUpdate) {
-          onResultUpdate({
-            startupPitch: {
-              ...this.selectedMock.pitch,
-              name: this.selectedMock.pitch.name + " (Draft)"
-            }
-          });
-        }
-      }
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemPrompts[agent] },
+      ...this.chatHistory
+    ];
 
-      // Critic step
-      if (this.shouldStop) break;
-      await this.simulateAgentResponse(
-        'critic',
-        roundData.critic,
-        round + 1,
-        1,
-        onProgress
-      );
-
-      // Defender step
-      if (this.shouldStop) break;
-      await this.simulateAgentResponse(
-        'defender',
-        roundData.defender,
-        round + 1,
-        2,
-        onProgress
-      );
-
-      // Update partial result after each round
-      if (onResultUpdate) {
-        onResultUpdate({
-          startupPitch: this.selectedMock.pitch,
-          investmentVerdict: {
-            ...this.selectedMock.verdict,
-            confidence: Math.min(this.selectedMock.verdict.confidence + (round * 5), 95),
-            reasoning: "Evaluation in progress... Agents are refining the concept and addressing concerns."
-          }
-        });
-      }
-
-      this.currentRound = round + 2;
-    }
-
-    // Final investor decision if not stopped
-    if (!this.shouldStop) {
-      const finalInvestorMessage = this.generateFinalInvestorMessage(this.selectedMock.verdict);
-      await this.simulateAgentResponse(
-        'investor',
-        finalInvestorMessage,
-        this.maxRounds,
-        3,
-        onProgress
-      );
-
-      // Complete evaluation
-      onComplete({
-        startupPitch: this.selectedMock.pitch,
-        investmentVerdict: this.selectedMock.verdict,
-        conversationHistory: this.conversationHistory
-      });
-    }
-  }
-
-  private async simulateAgentResponse(
-    agent: 'clarifier' | 'critic' | 'defender' | 'investor',
-    content: string,
-    round: number,
-    step: number,
-    onProgress: (step: number, message: Message, cost: number) => void
-  ): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        if (this.shouldStop) {
-          resolve();
-          return;
-        }
-
-        const message: Message = {
-          id: `${agent}-${round}-${Date.now()}`,
-          agent,
-          content,
-          timestamp: new Date().toLocaleTimeString(),
-          round
-        };
-
-        this.conversationHistory.push(message);
-        
-        // Simulate API cost (roughly $0.50-$2.00 per agent response)
-        const cost = Math.random() * 1.5 + 0.5;
-        this.currentCost += cost;
-
-        onProgress(step, message, cost);
-        resolve();
-      }, Math.random() * 2000 + 1000); // Random delay between 1-3 seconds
+    const response = await this.openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages
     });
+
+    const content = response.choices[0].message?.content?.trim() || '';
+    const tokens = response.usage?.total_tokens || 0;
+    const cost = tokens * 0.002 / 1000; // approx cost for gpt-3.5-turbo
+    this.currentCost += cost;
+    this.chatHistory.push({ role: 'assistant', content });
+    return { content, cost };
   }
 
-  private generateFinalInvestorMessage(verdict: InvestmentVerdict): string {
-    return `After careful consideration of the discussion, I've reached my investment decision.
+  private addMessage(agent: Message['agent'], res: { content: string; cost: number }, round: number): Message {
+    const message: Message = {
+      id: `${agent}-${round}-${Date.now()}`,
+      agent,
+      content: res.content,
+      timestamp: new Date().toLocaleTimeString(),
+      round
+    };
+    this.conversationHistory.push(message);
+    return message;
+  }
 
-**DECISION: ${verdict.decision.toUpperCase()}**
+  private async summarizePitch(): Promise<StartupPitch> {
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: 'system', content: 'Summarize the startup concept discussed so far as JSON {"name":"","problem":"","solution":"","market":"","businessModel":"","competitive":"","execution":""}.' },
+      ...this.chatHistory
+    ];
+    const res = await this.openai.chat.completions.create({ model: 'gpt-3.5-turbo', messages });
+    const text = res.choices[0].message?.content || '{}';
+    const json = this.extractJson(text);
+    const tokens = res.usage?.total_tokens || 0;
+    this.currentCost += tokens * 0.002 / 1000;
+    return json as StartupPitch;
+  }
 
-${verdict.reasoning}
+  private async summarizeVerdict(): Promise<InvestmentVerdict> {
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: 'system', content: 'Provide an interim investment analysis as JSON {"decision":"invest"|"pass","confidence":0,"reasoning":"","strengths":[],"concerns":[],"recommendedNext":[]}. Keep it short.' },
+      ...this.chatHistory
+    ];
+    const res = await this.openai.chat.completions.create({ model: 'gpt-3.5-turbo', messages });
+    const text = res.choices[0].message?.content || '{}';
+    const json = this.extractJson(text);
+    const tokens = res.usage?.total_tokens || 0;
+    this.currentCost += tokens * 0.002 / 1000;
+    return json as InvestmentVerdict;
+  }
 
-Key factors in my decision:
-• Market potential and size
-• Competitive positioning
-• Execution feasibility
-• Financial projections
-• Team requirements
+  private parseFinalSummary(text: string): { startupPitch: StartupPitch; investmentVerdict: InvestmentVerdict } {
+    const data = this.extractJson(text);
+    return data as { startupPitch: StartupPitch; investmentVerdict: InvestmentVerdict };
+  }
 
-The confidence level for this decision is ${verdict.confidence}% based on the information presented and market analysis.`;
+  private extractJson(text: string): any {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return {};
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return {};
+    }
+  }
+
+  private checkBudget(): boolean {
+    if (this.currentCost >= this.budget) {
+      this.shouldStop = true;
+      return true;
+    }
+    return false;
   }
 }
