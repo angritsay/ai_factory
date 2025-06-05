@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
@@ -11,17 +11,59 @@ import { InvestorDocument } from './components/InvestorDocument';
 import { FinalSummary } from './components/FinalSummary';
 import { ApiEvaluationService } from './services/ApiEvaluationService';
 
+// Типы интерфейсов
+interface Message {
+  id: string;
+  agent: 'clarifier' | 'critic' | 'defender' | 'investor';
+  content: string;
+  timestamp: string;
+  round: number;
+}
+
+interface StartupPitch {
+  name: string;
+  problem: string;
+  solution: string;
+  market: string;
+  businessModel: string;
+  competitive: string;
+  execution: string;
+}
+
+interface InvestmentVerdict {
+  decision: 'invest' | 'pass';
+  confidence: number;
+  reasoning: string;
+  strengths: string[];
+  concerns: string[];
+  recommendedNext: string[];
+}
+
+// Интерфейс для сохраненного состояния
+interface SavedEvaluationState {
+  startupIdea: string;
+  budget: string;
+  isEvaluating: boolean;
+  currentStep: number;
+  conversation: Message[];
+  finalSummary: { startupPitch: StartupPitch; investmentVerdict: InvestmentVerdict; conversationHistory: Message[] } | null;
+  partialResult: { startupPitch?: StartupPitch; investmentVerdict?: InvestmentVerdict } | null;
+  budgetUsed: number;
+  evaluationId: string | null;
+  timestamp: number;
+}
+
 export default function App() {
   const [startupIdea, setStartupIdea] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [budget, setBudget] = useState('10');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [conversation, setConversation] = useState([]);
-  const [finalSummary, setFinalSummary] = useState(null);
-  const [partialResult, setPartialResult] = useState(null);
+  const [conversation, setConversation] = useState<Message[]>([]);
+  const [finalSummary, setFinalSummary] = useState<{ startupPitch: StartupPitch; investmentVerdict: InvestmentVerdict; conversationHistory: Message[] } | null>(null);
+  const [partialResult, setPartialResult] = useState<{ startupPitch?: StartupPitch; investmentVerdict?: InvestmentVerdict } | null>(null);
   const [budgetUsed, setBudgetUsed] = useState(0);
-  const [evaluationService, setEvaluationService] = useState(null);
+  const [evaluationService, setEvaluationService] = useState<ApiEvaluationService | null>(null);
 
   const agents = [
     { name: 'Clarifier', icon: Brain, description: 'Interprets ideas', color: 'text-sky-700' },
@@ -29,6 +71,130 @@ export default function App() {
     { name: 'Defender', icon: TrendingUp, description: 'Strengthens proposals', color: 'text-emerald-700' },
     { name: 'Investor', icon: Target, description: 'Evaluates potential', color: 'text-violet-700' }
   ];
+
+  // Функция для сохранения состояния в localStorage
+  const saveEvaluationState = (state: Partial<SavedEvaluationState>) => {
+    const currentState: SavedEvaluationState = {
+      startupIdea,
+      budget,
+      isEvaluating,
+      currentStep,
+      conversation,
+      finalSummary,
+      partialResult,
+      budgetUsed,
+      evaluationId: evaluationService?.['evaluationId'] || null,
+      timestamp: Date.now(),
+      ...state
+    };
+    
+    localStorage.setItem('ai_evaluator_state', JSON.stringify(currentState));
+  };
+
+  // Функция для загрузки состояния из localStorage
+  const loadEvaluationState = (): SavedEvaluationState | null => {
+    try {
+      const savedState = localStorage.getItem('ai_evaluator_state');
+      if (!savedState) return null;
+      
+      const state: SavedEvaluationState = JSON.parse(savedState);
+      
+      // Проверяем, что состояние не старше 24 часов
+      const hoursSinceLastSave = (Date.now() - state.timestamp) / (1000 * 60 * 60);
+      if (hoursSinceLastSave > 24) {
+        localStorage.removeItem('ai_evaluator_state');
+        return null;
+      }
+      
+      return state;
+    } catch (error) {
+      console.error('Error loading saved state:', error);
+      localStorage.removeItem('ai_evaluator_state');
+      return null;
+    }
+  };
+
+  // Функция для очистки сохраненного состояния
+  const clearSavedState = () => {
+    localStorage.removeItem('ai_evaluator_state');
+  };
+
+  // Восстановление состояния при загрузке компонента
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('openai_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    }
+
+    // Восстанавливаем состояние оценки, если оно есть
+    const savedState = loadEvaluationState();
+    if (savedState && savedState.isEvaluating) {
+      // Восстанавливаем все состояние
+      setStartupIdea(savedState.startupIdea);
+      setBudget(savedState.budget);
+      setCurrentStep(savedState.currentStep);
+      setConversation(savedState.conversation);
+      setFinalSummary(savedState.finalSummary);
+      setPartialResult(savedState.partialResult);
+      setBudgetUsed(savedState.budgetUsed);
+      
+      // Показываем пользователю информацию о восстановленном состоянии
+      const shouldContinue = window.confirm(
+        'Обнаружена незавершенная оценка стартапа. Хотите продолжить с того места, где остановились?'
+      );
+      
+      if (shouldContinue) {
+        setIsEvaluating(true);
+        
+        // Воссоздаем сервис и пытаемся продолжить оценку
+        const service = new ApiEvaluationService();
+        setEvaluationService(service);
+        
+        // Если есть evaluationId, пытаемся продолжить оценку
+        if (savedState.evaluationId) {
+          try {
+            // Устанавливаем evaluationId в сервисе через приватное свойство
+            (service as any).evaluationId = savedState.evaluationId;
+            
+            // Продолжаем оценку
+            service.continueEvaluation(
+              (step, message, cost) => {
+                setCurrentStep(step);
+                setConversation(prev => [...prev, message]);
+                setBudgetUsed(prev => prev + cost);
+              },
+              (summary) => {
+                setFinalSummary(summary);
+                setIsEvaluating(false);
+                setPartialResult(null);
+                clearSavedState(); // Очищаем сохраненное состояние после завершения
+              },
+              (partial) => {
+                setPartialResult(partial);
+              }
+            );
+          } catch (error) {
+            console.error('Failed to resume evaluation:', error);
+            setIsEvaluating(false);
+            clearSavedState();
+          }
+        } else {
+          // Если нет evaluationId, просто показываем восстановленное состояние
+          setIsEvaluating(false);
+        }
+      } else {
+        // Пользователь отказался продолжить, очищаем состояние
+        clearSavedState();
+      }
+    }
+  }, []);
+
+  // Автоматическое сохранение состояния при изменениях
+  useEffect(() => {
+    if (isEvaluating || conversation.length > 0 || partialResult || finalSummary) {
+      saveEvaluationState({});
+    }
+  }, [isEvaluating, currentStep, conversation, partialResult, finalSummary, budgetUsed]);
 
   const handleStartEvaluation = async () => {
     if (!startupIdea.trim()) return;
@@ -42,6 +208,9 @@ export default function App() {
     if (apiKey) {
       localStorage.setItem('openai_api_key', apiKey);
     }
+
+    // Очищаем предыдущее состояние при новом запуске
+    clearSavedState();
 
     setIsEvaluating(true);
     setCurrentStep(0);
@@ -67,6 +236,7 @@ export default function App() {
           setFinalSummary(summary);
           setIsEvaluating(false);
           setPartialResult(null);
+          clearSavedState(); // Очищаем сохраненное состояние после завершения
         },
         (partial) => {
           setPartialResult(partial);
@@ -76,6 +246,7 @@ export default function App() {
       console.error('Evaluation failed:', error);
       alert(`Ошибка оценки: ${error.message}`);
       setIsEvaluating(false);
+      clearSavedState(); // Очищаем состояние при ошибке
     }
   };
 
@@ -83,6 +254,8 @@ export default function App() {
     if (evaluationService) {
       evaluationService.stop();
       setIsEvaluating(false);
+      // Сохраняем состояние при остановке, чтобы можно было продолжить
+      saveEvaluationState({ isEvaluating: false });
     }
   };
 
@@ -102,6 +275,7 @@ export default function App() {
           setFinalSummary(summary);
           setIsEvaluating(false);
           setPartialResult(null);
+          clearSavedState(); // Очищаем сохраненное состояние после завершения
         },
         (partial) => {
           setPartialResult(partial);
@@ -121,14 +295,8 @@ export default function App() {
     setPartialResult(null);
     setBudgetUsed(0);
     setEvaluationService(null);
+    clearSavedState(); // Очищаем сохраненное состояние при сбросе
   };
-
-  React.useEffect(() => {
-    const savedApiKey = localStorage.getItem('openai_api_key');
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-    }
-  }, []);
 
   const showSplitView = isEvaluating || finalSummary || partialResult;
 
@@ -241,15 +409,27 @@ export default function App() {
                       )}
                       
                       {!isEvaluating && (conversation.length > 0 || finalSummary) && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={handleThinkAgain}
-                          className="glass-subtle border-0 text-foreground-muted hover:text-foreground"
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          Think Again
-                        </Button>
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleThinkAgain}
+                            className="glass-subtle border-0 text-foreground-muted hover:text-foreground"
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Think Again
+                          </Button>
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleReset}
+                            className="glass-subtle border-0 text-foreground-muted hover:text-foreground"
+                          >
+                            <Square className="h-3 w-3 mr-1" />
+                            Reset
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
