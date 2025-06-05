@@ -10,6 +10,9 @@ const { LangChainEvaluationService } = require('./services/LangChainEvaluationSe
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Trust proxy - это важно для работы rate limiting за прокси
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -19,7 +22,13 @@ app.use(helmet({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Более точная идентификация пользователей за прокси
+  keyGenerator: (req) => {
+    return req.ip || req.connection.remoteAddress;
+  }
 });
 app.use('/api', limiter);
 
