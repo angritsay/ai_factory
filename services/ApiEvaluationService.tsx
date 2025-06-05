@@ -1,7 +1,7 @@
 // Real API service for AI agent evaluation
 interface Message {
   id: string;
-  agent: 'clarifier' | 'critic' | 'defender' | 'investor';
+  agent: 'proposer' | 'critic' | 'investor' | 'system';
   content: string;
   timestamp: string;
   round: number;
@@ -103,26 +103,8 @@ export class ApiEvaluationService {
 
     this.shouldStop = false;
 
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/api/evaluate/${this.evaluationId}/continue`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to continue evaluation');
-      }
-
-      // Resume polling for updates
-      this.pollEvaluationStatus(this.evaluationId, onProgress, onComplete, onResultUpdate);
-
-    } catch (error) {
-      console.error('Failed to continue evaluation:', error);
-      throw error;
-    }
+    // Just resume polling for the existing evaluation
+    this.pollEvaluationStatus(this.evaluationId, onProgress, onComplete, onResultUpdate);
   }
 
   private async pollEvaluationStatus(
@@ -156,7 +138,16 @@ export class ApiEvaluationService {
         if (data.conversationHistory.length > lastMessageCount) {
           const newMessages = data.conversationHistory.slice(lastMessageCount);
           
-          for (const message of newMessages) {
+          for (const messageData of newMessages) {
+            // Transform server message format to UI format
+            const message: Message = {
+              id: `msg_${Date.now()}_${Math.random()}`,
+              agent: this.mapAgent(messageData.agent),
+              content: messageData.message || messageData.content || '',
+              timestamp: messageData.timestamp || new Date().toISOString(),
+              round: messageData.iteration || 1
+            };
+            
             // Calculate cost per message (approximate)
             const costPerMessage = data.currentCost / data.conversationHistory.length;
             onProgress(step, message, costPerMessage);
@@ -181,7 +172,13 @@ export class ApiEvaluationService {
           onComplete({
             startupPitch: data.finalSummary.startupPitch,
             investmentVerdict: data.finalSummary.investmentVerdict,
-            conversationHistory: data.conversationHistory
+            conversationHistory: data.conversationHistory.map((msg: any) => ({
+              id: `msg_${Date.now()}_${Math.random()}`,
+              agent: this.mapAgent(msg.agent),
+              content: msg.message || msg.content || '',
+              timestamp: msg.timestamp || new Date().toISOString(),
+              round: msg.iteration || 1
+            }))
           });
         } else if (data.status === 'error') {
           if (this.pollingInterval) {
@@ -219,6 +216,21 @@ export class ApiEvaluationService {
       });
     } catch (error) {
       console.error('Failed to stop evaluation:', error);
+    }
+  }
+
+  private mapAgent(agent: string): 'proposer' | 'critic' | 'investor' | 'system' {
+    // Map server agent names to UI agent names
+    switch (agent?.toLowerCase()) {
+      case 'proposer':
+        return 'proposer';
+      case 'critic':
+        return 'critic';
+      case 'investor':
+        return 'investor';
+      case 'system':
+      default:
+        return 'system';
     }
   }
 } 

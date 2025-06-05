@@ -45,7 +45,7 @@ app.use(express.json({ limit: '10mb' }));
 const activeEvaluations = new Map();
 
 // Available budget options
-const BUDGET_OPTIONS = [0.1, 1, 2, 3, 5, 10, 20];
+const BUDGET_OPTIONS = [0.1, 0.5, 1, 2, 3, 5, 10];
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -301,7 +301,6 @@ function generateEvaluationId() {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 LangChain startup evaluation active`);
-  console.log(`💰 Available budgets: ${BUDGET_OPTIONS.join(', ')} USD`);
 });
 
 module.exports = app; 

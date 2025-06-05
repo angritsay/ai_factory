@@ -4,7 +4,7 @@ import { Brain, Shield, TrendingUp, Target, Clock } from 'lucide-react';
 
 interface Message {
   id: string;
-  agent: 'clarifier' | 'critic' | 'defender' | 'investor';
+  agent: 'proposer' | 'critic' | 'investor' | 'system';
   content: string;
   timestamp: string;
   round: number;
@@ -15,8 +15,8 @@ interface AgentConversationProps {
 }
 
 const agentConfig = {
-  clarifier: {
-    name: 'Clarifier',
+  proposer: {
+    name: 'Proposer',
     icon: Brain,
     gradient: 'from-sky-600/10 to-sky-700/5',
     accent: 'border-sky-600/20',
@@ -29,19 +29,19 @@ const agentConfig = {
     accent: 'border-rose-600/20',
     iconColor: 'text-rose-700'
   },
-  defender: {
-    name: 'Defender',
-    icon: TrendingUp,
-    gradient: 'from-emerald-600/10 to-emerald-700/5',
-    accent: 'border-emerald-600/20',
-    iconColor: 'text-emerald-700'
-  },
   investor: {
     name: 'Investor',
     icon: Target,
     gradient: 'from-violet-600/10 to-violet-700/5',
     accent: 'border-violet-600/20',
     iconColor: 'text-violet-700'
+  },
+  system: {
+    name: 'System',
+    icon: TrendingUp,
+    gradient: 'from-emerald-600/10 to-emerald-700/5',
+    accent: 'border-emerald-600/20',
+    iconColor: 'text-emerald-700'
   }
 };
 

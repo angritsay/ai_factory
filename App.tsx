@@ -14,7 +14,7 @@ import { ApiEvaluationService } from './services/ApiEvaluationService';
 // Типы интерфейсов
 interface Message {
   id: string;
-  agent: 'clarifier' | 'critic' | 'defender' | 'investor';
+  agent: 'proposer' | 'critic' | 'investor' | 'system';
   content: string;
   timestamp: string;
   round: number;
@@ -56,7 +56,7 @@ interface SavedEvaluationState {
 export default function App() {
   const [startupIdea, setStartupIdea] = useState('');
   const [apiKey, setApiKey] = useState('');
-  const [budget, setBudget] = useState('10');
+  const [budget, setBudget] = useState('1');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [conversation, setConversation] = useState<Message[]>([]);
@@ -66,10 +66,9 @@ export default function App() {
   const [evaluationService, setEvaluationService] = useState<ApiEvaluationService | null>(null);
 
   const agents = [
-    { name: 'Clarifier', icon: Brain, description: 'Interprets ideas', color: 'text-sky-700' },
-    { name: 'Critic', icon: Shield, description: 'Validates concepts', color: 'text-rose-700' },
-    { name: 'Defender', icon: TrendingUp, description: 'Strengthens proposals', color: 'text-emerald-700' },
-    { name: 'Investor', icon: Target, description: 'Evaluates potential', color: 'text-violet-700' }
+    { name: 'Proposer', icon: Brain, description: 'Proposes ideas', color: 'text-sky-700' },
+    { name: 'Critic', icon: Shield, description: 'Analyzes critically', color: 'text-rose-700' },
+    { name: 'Investor', icon: Target, description: 'Makes decisions', color: 'text-violet-700' }
   ];
 
   // Функция для сохранения состояния в localStorage
@@ -126,10 +125,10 @@ export default function App() {
       setApiKey(savedApiKey);
     }
 
-    // Восстанавливаем состояние оценки, если оно есть
+    // Восстанавливаем состояние оценки, если оно есть (упрощенная версия)
     const savedState = loadEvaluationState();
-    if (savedState && savedState.isEvaluating) {
-      // Восстанавливаем все состояние
+    if (savedState && savedState.conversation.length > 0) {
+      // Восстанавливаем только основное состояние без попыток продолжить оценку
       setStartupIdea(savedState.startupIdea);
       setBudget(savedState.budget);
       setCurrentStep(savedState.currentStep);
@@ -138,54 +137,8 @@ export default function App() {
       setPartialResult(savedState.partialResult);
       setBudgetUsed(savedState.budgetUsed);
       
-      // Показываем пользователю информацию о восстановленном состоянии
-      const shouldContinue = window.confirm(
-        'Обнаружена незавершенная оценка стартапа. Хотите продолжить с того места, где остановились?'
-      );
-      
-      if (shouldContinue) {
-        setIsEvaluating(true);
-        
-        // Воссоздаем сервис и пытаемся продолжить оценку
-        const service = new ApiEvaluationService();
-        setEvaluationService(service);
-        
-        // Если есть evaluationId, пытаемся продолжить оценку
-        if (savedState.evaluationId) {
-          try {
-            // Устанавливаем evaluationId в сервисе через приватное свойство
-            (service as any).evaluationId = savedState.evaluationId;
-            
-            // Продолжаем оценку
-            service.continueEvaluation(
-              (step, message, cost) => {
-                setCurrentStep(step);
-                setConversation(prev => [...prev, message]);
-                setBudgetUsed(prev => prev + cost);
-              },
-              (summary) => {
-                setFinalSummary(summary);
-                setIsEvaluating(false);
-                setPartialResult(null);
-                clearSavedState(); // Очищаем сохраненное состояние после завершения
-              },
-              (partial) => {
-                setPartialResult(partial);
-              }
-            );
-          } catch (error) {
-            console.error('Failed to resume evaluation:', error);
-            setIsEvaluating(false);
-            clearSavedState();
-          }
-        } else {
-          // Если нет evaluationId, просто показываем восстановленное состояние
-          setIsEvaluating(false);
-        }
-      } else {
-        // Пользователь отказался продолжить, очищаем состояние
-        clearSavedState();
-      }
+      // Не пытаемся автоматически продолжать оценку
+      setIsEvaluating(false);
     }
   }, []);
 
@@ -298,7 +251,7 @@ export default function App() {
     clearSavedState(); // Очищаем сохраненное состояние при сбросе
   };
 
-  const showSplitView = isEvaluating || finalSummary || partialResult;
+  const showSplitView = isEvaluating || conversation.length > 0 || finalSummary || partialResult;
 
   return (
     <div className="min-h-screen p-6 md:p-8">
@@ -353,10 +306,13 @@ export default function App() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass-card border-0">
+                    <SelectItem value="0.1">$0.1 USD</SelectItem>
+                    <SelectItem value="0.5">$0.5 USD</SelectItem>
+                    <SelectItem value="1">$1 USD</SelectItem>
+                    <SelectItem value="2">$2 USD</SelectItem>
+                    <SelectItem value="3">$3 USD</SelectItem>
                     <SelectItem value="5">$5 USD</SelectItem>
                     <SelectItem value="10">$10 USD</SelectItem>
-                    <SelectItem value="25">$25 USD</SelectItem>
-                    <SelectItem value="50">$50 USD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -441,7 +397,7 @@ export default function App() {
               </div>
 
               {/* Agent Status Cards - Single Row, Compact */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {agents.map((agent, index) => {
                   const Icon = agent.icon;
                   const isActive = currentStep === index && isEvaluating;

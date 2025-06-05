@@ -50,10 +50,10 @@
   --ring: rgba(31, 31, 31, 0.2);
   
   /* Agent Colors - Warm Palette */
-  --agent-clarifier: rgba(70, 130, 180, 0.1);
+  --agent-proposer: rgba(70, 130, 180, 0.1);
   --agent-critic: rgba(178, 34, 34, 0.1);
-  --agent-defender: rgba(34, 139, 34, 0.1);
   --agent-investor: rgba(138, 43, 226, 0.1);
+  --agent-system: rgba(34, 139, 34, 0.1);
   
   --radius: 0.75rem;
 }
@@ -95,10 +95,10 @@
   --input-background: rgba(31, 31, 31, 0.05);
   --ring: rgba(245, 245, 245, 0.2);
   
-  --agent-clarifier: rgba(70, 130, 180, 0.15);
+  --agent-proposer: rgba(70, 130, 180, 0.15);
   --agent-critic: rgba(178, 34, 34, 0.15);
-  --agent-defender: rgba(34, 139, 34, 0.15);
   --agent-investor: rgba(138, 43, 226, 0.15);
+  --agent-system: rgba(34, 139, 34, 0.15);
 }
 
 @theme inline {
@@ -138,10 +138,10 @@
   --color-input-background: var(--input-background);
   --color-ring: var(--ring);
   
-  --color-agent-clarifier: var(--agent-clarifier);
+  --color-agent-proposer: var(--agent-proposer);
   --color-agent-critic: var(--agent-critic);
-  --color-agent-defender: var(--agent-defender);
   --color-agent-investor: var(--agent-investor);
+  --color-agent-system: var(--agent-system);
   
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
