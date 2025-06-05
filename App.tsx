@@ -9,7 +9,7 @@ import { Brain, MessageSquare, TrendingUp, Shield, Target, Sparkles, DollarSign,
 import { AgentConversation } from './components/AgentConversation';
 import { InvestorDocument } from './components/InvestorDocument';
 import { FinalSummary } from './components/FinalSummary';
-import { EvaluationService } from './services/EvaluationService';
+import { ApiEvaluationService } from './services/ApiEvaluationService';
 
 export default function App() {
   const [startupIdea, setStartupIdea] = useState('');
@@ -33,6 +33,12 @@ export default function App() {
   const handleStartEvaluation = async () => {
     if (!startupIdea.trim()) return;
     
+    const currentApiKey = apiKey || localStorage.getItem('openai_api_key');
+    if (!currentApiKey) {
+      alert('Пожалуйста, введите ваш OpenAI API ключ');
+      return;
+    }
+    
     if (apiKey) {
       localStorage.setItem('openai_api_key', apiKey);
     }
@@ -45,11 +51,13 @@ export default function App() {
     setBudgetUsed(0);
 
     try {
-      const service = new EvaluationService(apiKey || localStorage.getItem('openai_api_key'), parseFloat(budget));
+      const service = new ApiEvaluationService();
       setEvaluationService(service);
       
       await service.evaluateIdea(
         startupIdea,
+        currentApiKey,
+        parseFloat(budget),
         (step, message, cost) => {
           setCurrentStep(step);
           setConversation(prev => [...prev, message]);
@@ -66,6 +74,7 @@ export default function App() {
       );
     } catch (error) {
       console.error('Evaluation failed:', error);
+      alert(`Ошибка оценки: ${error.message}`);
       setIsEvaluating(false);
     }
   };
