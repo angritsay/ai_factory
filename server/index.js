@@ -5,10 +5,10 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 require('dotenv').config();
 
-const { EvaluationService } = require('./services/EvaluationService');
+const { LangChainEvaluationService } = require('./services/LangChainEvaluationService');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Security middleware
 app.use(helmet({
@@ -27,7 +27,7 @@ app.use('/api', limiter);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? [process.env.FRONTEND_URL, 'https://ai-startup-evaluator.onrender.com']
-    : ['http://localhost:5173', 'http://localhost:3000']
+    : ['http://localhost:5173', 'http://localhost:5177', 'http://localhost:3000']
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -35,9 +35,22 @@ app.use(express.json({ limit: '10mb' }));
 // Store active evaluations (in production, use Redis)
 const activeEvaluations = new Map();
 
+// Available budget options
+const BUDGET_OPTIONS = [0.1, 1, 2, 3, 5, 10, 20];
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    version: '2.0.0-langchain',
+    budgetOptions: BUDGET_OPTIONS
+  });
+});
+
+// Get budget options endpoint
+app.get('/api/budget-options', (req, res) => {
+  res.json({ budgetOptions: BUDGET_OPTIONS });
 });
 
 // Start evaluation endpoint
@@ -46,7 +59,7 @@ app.post('/api/evaluate', async (req, res) => {
     const { idea, apiKey, budget } = req.body;
 
     if (!idea || !idea.trim()) {
-      return res.status(400).json({ error: 'Idea is required' });
+      return res.status(400).json({ error: 'Startup idea is required' });
     }
 
     if (!apiKey) {
@@ -57,32 +70,44 @@ app.post('/api/evaluate', async (req, res) => {
       return res.status(400).json({ error: 'Valid budget is required' });
     }
 
+    if (!BUDGET_OPTIONS.includes(parseFloat(budget))) {
+      return res.status(400).json({ 
+        error: 'Invalid budget', 
+        allowedBudgets: BUDGET_OPTIONS 
+      });
+    }
+
     const evaluationId = generateEvaluationId();
-    const service = new EvaluationService(apiKey, parseFloat(budget));
+    const service = new LangChainEvaluationService(apiKey, parseFloat(budget));
     
     activeEvaluations.set(evaluationId, {
       service,
       status: 'active',
       startedAt: new Date(),
       conversationHistory: [],
-      currentCost: 0
+      currentCost: 0,
+      idea: idea.trim(),
+      budget: parseFloat(budget)
     });
 
     res.json({ 
       evaluationId,
       status: 'started',
-      message: 'Evaluation started successfully'
+      message: 'Startup evaluation started',
+      budget: parseFloat(budget),
+      maxIterations: 5
     });
 
     // Start evaluation in background
     service.evaluateIdea(
-      idea,
+      idea.trim(),
       (step, message, cost) => {
         const evaluation = activeEvaluations.get(evaluationId);
         if (evaluation) {
           evaluation.conversationHistory.push(message);
-          evaluation.currentCost += cost;
+          evaluation.currentCost = service.currentCost;
           evaluation.lastUpdate = new Date();
+          evaluation.currentIteration = service.currentIteration;
         }
       },
       (summary) => {
@@ -91,6 +116,7 @@ app.post('/api/evaluate', async (req, res) => {
           evaluation.status = 'completed';
           evaluation.finalSummary = summary;
           evaluation.completedAt = new Date();
+          evaluation.totalCost = summary.metadata?.totalCost || service.currentCost;
         }
       },
       (partialResult) => {
@@ -105,6 +131,7 @@ app.post('/api/evaluate', async (req, res) => {
       if (evaluation) {
         evaluation.status = 'error';
         evaluation.error = error.message;
+        evaluation.errorAt = new Date();
       }
     });
 
@@ -129,8 +156,14 @@ app.get('/api/evaluate/:evaluationId', (req, res) => {
       status: evaluation.status,
       conversationHistory: evaluation.conversationHistory,
       currentCost: evaluation.currentCost,
-      startedAt: evaluation.startedAt
+      budget: evaluation.budget,
+      startedAt: evaluation.startedAt,
+      idea: evaluation.idea
     };
+
+    if (evaluation.currentIteration) {
+      response.currentIteration = evaluation.currentIteration;
+    }
 
     if (evaluation.partialResult) {
       response.partialResult = evaluation.partialResult;
@@ -139,10 +172,16 @@ app.get('/api/evaluate/:evaluationId', (req, res) => {
     if (evaluation.finalSummary) {
       response.finalSummary = evaluation.finalSummary;
       response.completedAt = evaluation.completedAt;
+      response.totalCost = evaluation.totalCost;
     }
 
     if (evaluation.error) {
       response.error = evaluation.error;
+      response.errorAt = evaluation.errorAt;
+    }
+
+    if (evaluation.lastUpdate) {
+      response.lastUpdate = evaluation.lastUpdate;
     }
 
     res.json(response);
@@ -169,7 +208,8 @@ app.post('/api/evaluate/:evaluationId/stop', (req, res) => {
     res.json({ 
       evaluationId,
       status: 'stopped',
-      message: 'Evaluation stopped successfully'
+      message: 'Evaluation stopped',
+      totalCost: evaluation.service.currentCost
     });
   } catch (error) {
     console.error('Error stopping evaluation:', error);
@@ -177,8 +217,8 @@ app.post('/api/evaluate/:evaluationId/stop', (req, res) => {
   }
 });
 
-// Continue evaluation endpoint
-app.post('/api/evaluate/:evaluationId/continue', async (req, res) => {
+// Get evaluation statistics endpoint
+app.get('/api/evaluate/:evaluationId/stats', (req, res) => {
   try {
     const { evaluationId } = req.params;
     const evaluation = activeEvaluations.get(evaluationId);
@@ -187,43 +227,29 @@ app.post('/api/evaluate/:evaluationId/continue', async (req, res) => {
       return res.status(404).json({ error: 'Evaluation not found' });
     }
 
-    if (evaluation.status !== 'completed' && evaluation.status !== 'stopped') {
-      return res.status(400).json({ error: 'Evaluation must be completed or stopped to continue' });
+    const stats = {
+      evaluationId,
+      budget: evaluation.budget,
+      currentCost: evaluation.currentCost,
+      budgetUsed: ((evaluation.currentCost / evaluation.budget) * 100).toFixed(1),
+      status: evaluation.status,
+      iterations: evaluation.currentIteration || 0,
+      maxIterations: 5,
+      startedAt: evaluation.startedAt,
+      duration: evaluation.completedAt 
+        ? Math.round((evaluation.completedAt - evaluation.startedAt) / 1000)
+        : Math.round((new Date() - evaluation.startedAt) / 1000),
+      messagesCount: evaluation.conversationHistory.length
+    };
+
+    if (evaluation.completedAt) {
+      stats.completedAt = evaluation.completedAt;
     }
 
-    evaluation.status = 'active';
-    evaluation.resumedAt = new Date();
-
-    res.json({ 
-      evaluationId,
-      status: 'resumed',
-      message: 'Evaluation resumed successfully'
-    });
-
-    // Continue evaluation in background
-    evaluation.service.continueEvaluation(
-      (step, message, cost) => {
-        evaluation.conversationHistory.push(message);
-        evaluation.currentCost += cost;
-        evaluation.lastUpdate = new Date();
-      },
-      (summary) => {
-        evaluation.status = 'completed';
-        evaluation.finalSummary = summary;
-        evaluation.completedAt = new Date();
-      },
-      (partialResult) => {
-        evaluation.partialResult = partialResult;
-      }
-    ).catch((error) => {
-      console.error('Continue evaluation error:', error);
-      evaluation.status = 'error';
-      evaluation.error = error.message;
-    });
-
+    res.json(stats);
   } catch (error) {
-    console.error('Error continuing evaluation:', error);
-    res.status(500).json({ error: 'Failed to continue evaluation' });
+    console.error('Error getting statistics:', error);
+    res.status(500).json({ error: 'Failed to get statistics' });
   }
 });
 
@@ -249,21 +275,24 @@ app.use((error, req, res, next) => {
 setInterval(() => {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   
-  for (const [evaluationId, evaluation] of activeEvaluations.entries()) {
-    if (evaluation.startedAt < oneHourAgo && 
-        (evaluation.status === 'completed' || evaluation.status === 'error')) {
-      activeEvaluations.delete(evaluationId);
+  for (const [id, evaluation] of activeEvaluations.entries()) {
+    if (evaluation.startedAt < oneHourAgo && evaluation.status !== 'active') {
+      activeEvaluations.delete(id);
+      console.log(`Removed old evaluation: ${id}`);
     }
   }
 }, 60 * 60 * 1000);
 
+// Generate unique evaluation ID
 function generateEvaluationId() {
-  return 'eval_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+  return 'eval_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+// Start server
+app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 LangChain startup evaluation active`);
+  console.log(`💰 Available budgets: ${BUDGET_OPTIONS.join(', ')} USD`);
 });
 
 module.exports = app; 

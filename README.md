@@ -1,196 +1,222 @@
-# 🚀 AI Startup Evaluator
+# 🚀 AI Startup Evaluator v2.0 (LangChain Edition)
 
-Платформа для оценки стартап-идей с использованием коллаборативных AI-агентов, которые проводят автономные дискуссии и дают инвестиционные рекомендации.
+AI-powered startup idea evaluation system using LangChain for orchestrating collaborative AI agents.
 
-## 🎯 Возможности
+## 🎯 Overview
 
-- **4 специализированных AI-агента:**
-  - **Clarifier** — интерпретирует и структурирует сырые идеи
-  - **Critic** — скептически анализирует бизнес-модель и риски  
-  - **Defender** — защищает и улучшает концепцию
-  - **Investor** — принимает финальное инвестиционное решение
+This system uses three specialized AI agents for comprehensive startup idea evaluation:
 
-- **Реальное время**: наблюдайте за дискуссией агентов в режиме реального времени
-- **Контроль бюджета**: ограничение расходов на OpenAI API ($5-$50)
-- **Структурированные результаты**: детальные бизнес-планы и инвестиционные вердикты
-- **Интуитивный интерфейс**: современный UI с анимациями и адаптивным дизайном
+- **Proposer** — proposes and refines startup ideas
+- **Critic** — critically analyzes ideas, identifies weaknesses
+- **Investor** — makes final investment decisions
 
-## 🛠 Технологический стек
+## 🔧 New Features in v2.0
 
-**Frontend:**
-- React 18 + TypeScript
-- Vite для быстрой разработки
-- Tailwind CSS для стилизации
-- Radix UI компоненты
-- Lucide React иконки
+### LangChain Orchestration
+- Uses LangChain for coordinating agent interactions
+- Structured workflow with clear roles
+- Support for iterative idea improvement
 
-**Backend:**
-- Node.js + Express
-- OpenAI GPT-4 API
-- Tiktoken для подсчета токенов
-- CORS, Helmet для безопасности
-- Rate limiting
+### Smart Iterative System
+- Up to 5 evaluation iterations
+- Each iteration includes up to 10 turns per agent
+- Investor can reformulate ideas for next iteration
+- Automatic completion when idea is ready
 
-## 🏃‍♂️ Быстрый старт
+### Flexible Budget Management
+Available budget options: **$0.1, $1, $2, $3, $5, $10, $20**
+- Global spending control for entire session
+- Automatic stop when budget is exhausted
+- Detailed usage statistics
 
-### Требования
-- Node.js 18+
-- OpenAI API ключ
-- npm или yarn
+### Enhanced Investor Requirements
+Investor must provide:
+- **Clear idea formulation**: product, audience, problem, monetization
+- **Investment decision**: yes/no with reasoning and confidence level
+- **Readiness verdict**: "ready" or "not ready"
 
-### Локальная разработка
+## 🏗️ Architecture
 
-1. **Клонируйте репозиторий:**
-   ```bash
-   git clone <repository-url>
-   cd ai-startup-evaluator
-   ```
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│    Proposer     │◄──►│     Critic      │    │    Investor     │
+│   (proposes)    │    │   (critiques)   │    │   (evaluates)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         ▲                       ▲                       │
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 ▼
+                    ┌─────────────────────┐
+                    │   LangChain         │
+                    │   Orchestrator      │
+                    └─────────────────────┘
+```
 
-2. **Установите зависимости:**
-   ```bash
-   npm install
-   ```
+## 🚀 Quick Start
 
-3. **Настройте переменные окружения:**
-   ```bash
-   cp env.example .env
-   # Отредактируйте .env при необходимости
-   ```
+### Prerequisites
+- Node.js ≥ 18.0.0
+- OpenAI API key
+- npm or yarn
 
-4. **Запустите в режиме разработки:**
-   ```bash
-   npm run dev
-   ```
+### Installation
 
-   Это запустит:
-   - Frontend на http://localhost:5173
-   - Backend API на http://localhost:3000
+1. **Clone repository**
+```bash
+git clone <repository-url>
+cd ai-startup-evaluator
+```
 
-5. **Откройте браузер** и перейдите на http://localhost:5173
+2. **Install dependencies**
+```bash
+npm install
+```
 
-### Использование
+3. **Setup environment**
+```bash
+cp env.example .env
+```
 
-1. **Введите вашу стартап-идею** в текстовое поле
-2. **Добавьте OpenAI API ключ** (сохраняется локально в браузере)
-3. **Выберите бюджет** для оценки ($5-$50)  
-4. **Нажмите "Initialize Agent Evaluation"**
-5. **Наблюдайте** за дискуссией агентов в реальном времени
-6. **Получите результат** - структурированный бизнес-план и инвестиционное решение
+4. **Run in development mode**
+```bash
+npm run dev
+```
 
-## 🌐 Деплой на Render.com
+The application will be available at `http://localhost:5177`
 
-### Автоматический деплой
+### Usage
 
-1. **Подключите GitHub репозиторий** к Render.com
-2. **Render автоматически** обнаружит `render.yaml` конфигурацию
-3. **Установите переменные окружения** в Render Dashboard:
-   - `NODE_ENV=production`
-   - `PORT=3000` (автоматически)
-   - `FRONTEND_URL=https://your-app-name.onrender.com`
+1. **Enter startup idea** — brief description of your concept
+2. **Provide OpenAI API key** — for GPT-4 interaction
+3. **Select budget** — from $0.1 to $20 for cost control
+4. **Start evaluation** — watch agent debates in real-time
 
-### Ручной деплой
+## 📊 API Endpoints
 
-1. **Создайте новый Web Service** на Render.com
-2. **Настройте сборку:**
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npm start`
-   - Environment: `Node`
-3. **Установите переменные окружения** (см. выше)
-
-### Проверка деплоя
-
-После успешного деплоя:
-- Ваше приложение будет доступно по адресу `https://your-app-name.onrender.com`
-- API endpoints доступны по адресу `https://your-app-name.onrender.com/api`
-- Health check: `https://your-app-name.onrender.com/api/health`
-
-## 📡 API Endpoints
-
-### `POST /api/evaluate`
-Запускает новую оценку стартап-идеи
+### POST `/api/evaluate`
+Start new evaluation
 ```json
 {
-  "idea": "Ваша стартап-идея",
+  "idea": "Startup idea text",
   "apiKey": "sk-...",
-  "budget": 10
+  "budget": 5.0
 }
 ```
 
-### `GET /api/evaluate/:evaluationId`
-Получает статус и результаты оценки
+### GET `/api/evaluate/:id`
+Get evaluation status
 
-### `POST /api/evaluate/:evaluationId/stop`
-Останавливает текущую оценку
+### GET `/api/evaluate/:id/stats`
+Budget usage statistics
 
-### `POST /api/evaluate/:evaluationId/continue`
-Продолжает оценку с дополнительными раундами
+### POST `/api/evaluate/:id/stop`
+Stop active evaluation
 
-### `GET /api/health`
-Health check endpoint
+### GET `/api/budget-options`
+List of available budgets
 
-## 🔒 Безопасность
+## 🎭 Agent Roles
 
-- **API ключи** хранятся только в localStorage пользователя
-- **Rate limiting** на API endpoints
-- **CORS** настроен для разрешенных доменов
-- **Helmet.js** для дополнительной безопасности
-- **Валидация входных данных** на всех endpoints
+### Proposer
+- Formulates and improves ideas
+- Adapts based on criticism
+- Brief, reasoned responses (200-300 words)
 
-## ⚡ Производительность
+### Critic  
+- Critical analysis of viability
+- Questions about market potential
+- Identifies risks and weaknesses
 
-- **Токен-ограничения** для контроля расходов API
-- **Efficient polling** каждые 2 секунды для обновлений
-- **Автоматическая очистка** завершенных оценок через 1 час
-- **Chunked builds** для оптимизации загрузки
+### Investor
+- Final readiness assessment
+- Structured investment decision
+- Reformulates ideas for iterations
 
-## 🐛 Устранение неполадок
+## 💰 Budget Management
 
-### Ошибки API
-- Проверьте валидность OpenAI API ключа
-- Убедитесь, что на аккаунте достаточно средств
-- Проверьте лимиты rate limiting
+| Budget | Approximate Evaluation | Recommended For |
+|--------|----------------------|-----------------|
+| $0.1   | Quick check | System testing |
+| $1-2   | Basic evaluation | Simple ideas |
+| $3-5   | Full evaluation | Most cases |
+| $10-20 | Deep analysis | Complex projects |
 
-### Проблемы сборки
-- Убедитесь, что используется Node.js 18+
-- Очистите node_modules и переустановите зависимости
-- Проверьте логи сборки на Render
+## 🔧 Tech Stack
 
-### Проблемы подключения
-- Проверьте CORS настройки для production
-- Убедитесь, что backend запущен на правильном порту
-- Проверьте health endpoint
+- **Backend**: Node.js + Express
+- **AI Orchestration**: LangChain
+- **LLM**: OpenAI GPT-4
+- **Frontend**: React + Vite + Tailwind CSS
+- **Token Management**: tiktoken
 
-## 🤝 Разработка
+## 📈 Usage Examples
 
-### Структура проекта
+### Basic SaaS Idea
 ```
-├── server/           # Backend (Express)
-├── services/         # Frontend services
-├── components/       # React компоненты
-├── styles/          # CSS файлы
-├── package.json     # Зависимости
-├── vite.config.js   # Vite конфигурация
-└── render.yaml      # Render деплой
+Idea: "Email marketing automation platform for small businesses"
+Budget: $3
+Result: 3 iterations, ready for implementation
 ```
 
-### Доступные команды
-- `npm run dev` - разработка (frontend + backend)
-- `npm run server` - только backend
-- `npm run client` - только frontend  
-- `npm run build` - сборка для production
-- `npm start` - запуск production сервера
+### Complex AI Product
+```
+Idea: "AI assistant for medical diagnosis"  
+Budget: $10
+Result: 5 iterations, requires further development
+```
 
-## 📄 Лицензия
+## 🐛 Troubleshooting
 
-MIT License - см. LICENSE файл для деталей.
+### API Key Errors
+- Verify OpenAI API key correctness
+- Ensure sufficient account balance
 
-## 🙋‍♂️ Поддержка
+### Budget Exceeded
+- Use smaller budget for testing
+- Monitor spending in real-time
 
-Если у вас возникли вопросы или проблемы:
-1. Проверьте раздел "Устранение неполадок"
-2. Откройте issue в GitHub
-3. Проверьте логи в Render Dashboard
+### Agent Issues
+- Check `PROMPT.md` content
+- Verify system prompt correctness
+
+## 🚢 Deployment
+
+### Render.com
+Application ready for Render.com deployment using `render.yaml`
+
+### Local Production
+```bash
+npm run build
+npm start
+```
+
+## 📝 Logging & Monitoring
+
+System maintains detailed logs:
+- Agent interactions
+- Budget usage
+- Iteration statistics
+- Errors and warnings
+
+## 🤝 Contributing
+
+1. Fork repository
+2. Create feature branch
+3. Make changes
+4. Add tests
+5. Create Pull Request
+
+## 📄 License
+
+MIT License
+
+## 🆘 Support
+
+If you have questions or issues:
+1. Check "Troubleshooting" section
+2. Review browser console logs
+3. Create Issue in repository
 
 ---
 
-**Создано для эффективной оценки стартап-идей с помощью AI! 🚀** 
+**🎯 Project Goal**: Demonstrate LangChain capabilities for creating complex multi-agent systems in business idea analysis. 
